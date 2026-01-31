@@ -1,0 +1,169 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none; /* Mencegah seleksi teks saat main */
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #222;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #87CEEB; /* Warna langit default */
+}
+
+/* UI Layer */
+#ui-layer {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 95%;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.stat-box {
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Modals (Start & Game Over) */
+.modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+}
+
+.modal-content {
+    background: #333;
+    color: white;
+    padding: 30px;
+    text-align: center;
+    border-radius: 10px;
+    border: 2px solid #fff;
+    max-width: 80%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.story-text {
+    margin: 20px 0;
+    font-style: italic;
+    line-height: 1.5;
+    color: #ddd;
+}
+
+button {
+    background: #ff4500;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+button:active {
+    background: #cc3700;
+}
+
+/* CONTROLS (Virtual Stick & Button) */
+#controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    height: 150px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+    z-index: 15;
+    /* Agar tidak menghalangi view game tapi bisa diklik */
+    pointer-events: none; 
+}
+
+#joystick-area, #action-area {
+    width: 120px;
+    height: 120px;
+    pointer-events: auto; /* Area ini bisa disentuh */
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Visual Joystick */
+#joystick-outline {
+    width: 100px;
+    height: 100px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    position: relative;
+    background: rgba(0,0,0,0.1);
+}
+
+#joystick-knob {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* Attack Button */
+#attack-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255, 0, 0, 0.6);
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    font-size: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+}
+
+#attack-btn:active {
+    background: rgba(255, 0, 0, 0.9);
+    transform: scale(0.95);
+}
+
+/* Landscape orientation message (optional) */
+@media screen and (orientation: portrait) {
+    /* Bisa ditambahkan overlay "Please Rotate" jika mau */
+}
