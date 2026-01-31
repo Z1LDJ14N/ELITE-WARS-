@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELITE WARS v5.0: SHADOW PROTOCOL</title>
+    <style>
+        :root { --neon: #00ff41; --danger: #ff3131; --ui-bg: rgba(10, 10, 10, 0.8); }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; font-family: 'Courier New', monospace; }
+        body { background: #000; overflow: hidden; color: white; }
+
+        /* Background Kota - Mirip Thumbnail */
+        #game-container {
+            position: relative; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #000 100%);
+            background-image: url('https://img.freepik.com/free-vector/night-city-skyline-buildings-silhouette-cityscape_107791-1188.jpg');
+            background-size: cover; background-position: center;
+        }
+
+        canvas { display: block; image-rendering: pixelated; }
+
+        /* HUD & UI - Persis Thumbnail */
+        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; }
+        .label { color: var(--neon); font-size: 14px; margin-bottom: 2px; }
+        .hp-bar { width: 180px; height: 12px; border: 1px solid #555; background: #222; margin-bottom: 15px; }
+        #hp-fill { width: 100%; height: 100%; background: var(--neon); transition: 0.3s; }
+        
+        #loading-overlay {
+            position: absolute; top: 20px; right: 20px; text-align: right;
+        }
+        .load-bar { width: 150px; height: 8px; border: 1px solid #555; background: #111; display: inline-block; }
+        #load-fill { width: 0%; height: 100%; background: var(--neon); }
+
+        #console {
+            position: absolute; bottom: 180px; left: 20px; width: 350px; height: 120px;
+            background: rgba(0,0,0,0.6); border-left: 3px solid var(--neon);
+            font-size: 11px; color: #aaa; padding: 10px; overflow: hidden;
+            display: flex; flex-direction: column-reverse; pointer-events: none;
+        }
+
+        /* Controls Layout - Mirip Thumbnail */
+        .controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: center; align-items: flex-end; gap: 50px; padding: 20px; }
+        
+        .dpad { display: grid; grid-template-columns: repeat(3, 45px); gap: 5px; }
+        .action-zone { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        
+        .btn { 
+            background: #333; border: 1px solid #666; color: #fff; 
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 4px; font-size: 10px; cursor: pointer;
+        }
+        .btn:active { background: var(--neon); color: #000; }
+        
+        .btn-fire { 
+            width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--danger);
+            color: var(--danger); font-weight: bold; font-size: 14px; margin-left: 20px;
+        }
+        .btn-dash { width: 60px; height: 25px; background: #444; border-radius: 10px; }
+
+        .title-tag { position: absolute; bottom: 100px; right: 50px; text-align: right; }
+        .title-tag h2 { font-size: 28px; color: #eee; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div class="label">NINJA : KAGERO</div>
+        <div class="label">HP : <span id="hp-pct">100</span>%</div>
+        <div class="hp-bar"><div id="hp-fill"></div></div>
+        <div class="label">SCORE : <span id="score">0</span></div>
+    </div>
+
+    <div id="loading-overlay">
+        <div class="label" style="font-size: 10px;">INITIATING v5.0: SHADOW PROTOCOL</div>
+        <div class="load-bar"><div id="load-fill"></div></div>
+    </div>
+
+    <div id="console"></div>
+
+    <div class="title-tag">
+        <h2>ELITE WARS</h2>
+        <div style="color:var(--neon)">gameCanvas</div>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <div class="controls">
+        <div class="dpad">
+            <div style="grid-column:2" class="btn" id="btn-w">UP</div>
+            <div style="grid-column:1; grid-row:2" class="btn" id="btn-a">LEFT</div>
+            <div style="grid-column:2; grid-row:2" class="btn" id="btn-s">DOWN</div>
+            <div style="grid-column:3; grid-row:2" class="btn" id="btn-d">RIGHT</div>
+        </div>
+        
+        <div class="action-zone">
+            <div class="btn btn-dash" id="btn-dash">DASH</div>
+            <div class="btn btn-dash" style="background:#2c3e50" id="btn-skill">DASH</div>
+        </div>
+
+        <div class="btn btn-fire" id="btn-fire">THROW</div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Sprite Ninja (Player) & Maling (Enemy) - Base64 placeholder supaya transparan
+    const sprites = {
+        ninja: 'https://i.ibb.co/pLzY8vY/ninja-sprite.png', // Ganti ke URL ninja transparan lu
+        maling: 'https://i.ibb.co/m0fX0Xm/thief-sprite.png'  // Ganti ke URL maling transparan lu
+    };
+
+    // Fallback: Jika gambar blm ada, kita gambar Ninja Pake Code (Hitam)
+    function drawNinja(x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = "#111"; // Baju Ninja
+        ctx.fillRect(-15, -15, 30, 30);
+        ctx.fillStyle = "#f1c40f"; // Ikat Kepala
+        ctx.fillRect(-15, -5, 30, 5);
+        ctx.restore();
+    }
+
+    function drawMaling(x, y) {
+        ctx.fillStyle = "#4a2c2a"; // Baju Maling
+        ctx.fillRect(x-15, y-15, 30, 30);
+        ctx.fillStyle = "#fff"; // Karung Maling
+        ctx.beginPath(); ctx.arc(x+10, y+10, 8, 0, Math.PI*2); ctx.fill();
+    }
+
+    let player = { x: 200, y: 300, hp: 100, score: 0, speed: 4 };
+    let enemies = [];
+    let shurikens = [];
+    let gameActive = false;
+
+    function log(msg) {
+        const c = document.getElementById('console');
+        const d = document.createElement('div');
+        d.innerHTML = `> ${msg}`;
+        c.prepend(d);
+    }
+
+    // Loading Simulation
+    let ld = 0;
+    const ldInt = setInterval(() => {
+        ld += 5;
+        document.getElementById('load-fill').style.width = ld + '%';
+        if(ld >= 100) {
+            clearInterval(ldInt);
+            gameActive = true;
+            log("SHADOW PROTOCOL ACTIVATED");
+            spawnEnemy();
+            loop();
+        }
+    }, 50);
+
+    function spawnEnemy() {
+        if(!gameActive) return;
+        enemies.push({ x: canvas.width + 50, y: Math.random() * (canvas.height - 200) + 100, speed: 2 });
+        setTimeout(spawnEnemy, 2500);
+    }
+
+    function loop() {
+        if(!gameActive) return;
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+
+        // Player movement logic (Keyboard)
+        if(keys['w']) player.y -= player.speed;
+        if(keys['s']) player.y += player.speed;
+        if(keys['a']) player.x -= player.speed;
+        if(keys['d']) player.x += player.speed;
+
+        drawNinja(player.x, player.y, 0);
+
+        shurikens.forEach((s, i) => {
+            s.x += 10;
+            ctx.fillStyle = "#bdc3c7";
+            ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, Math.PI*2); ctx.fill();
+            if(s.x > canvas.width) shurikens.splice(i, 1);
+        });
+
+        enemies.forEach((en, i) => {
+            en.x -= en.speed;
+            drawMaling(en.x, en.y);
+
+            // Hit by Shuriken
+            shurikens.forEach((s, si) => {
+                if(Math.hypot(s.x - en.x, s.y - en.y) < 20) {
+                    enemies.splice(i, 1);
+                    shurikens.splice(si, 1);
+                    player.score += 50;
+                    document.getElementById('score').innerText = player.score;
+                    log("MALING TERSEPRINT +50");
+                }
+            });
+
+            // Hit Player
+            if(Math.hypot(player.x - en.x, player.y - en.y) < 30) {
+                player.hp -= 0.2;
+                document.getElementById('hp-fill').style.width = player.hp + '%';
+                document.getElementById('hp-pct').innerText = Math.floor(player.hp);
+                if(player.hp <= 0) location.reload();
+            }
+        });
+
+        requestAnimationFrame(loop);
+    }
+
+    const keys = {};
+    window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+    window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+    // Mobile Buttons
+    const bind = (id, key) => {
+        const el = document.getElementById(id);
+        el.onpointerdown = () => keys[key] = true;
+        el.onpointerup = () => keys[key] = false;
+    };
+    bind('btn-w', 'w'); bind('btn-s', 's');
+    bind('btn-a', 'a'); bind('btn-d', 'd');
+
+    document.getElementById('btn-fire').onclick = () => {
+        shurikens.push({x: player.x + 20, y: player.y});
+        log("SHURIKEN DEPLOYED");
+    };
+
+    document.getElementById('btn-dash').onclick = () => {
+        player.x += 100;
+        log("DASH SKILL USED");
+    };
+
+</script>
+</body>
+</html>
