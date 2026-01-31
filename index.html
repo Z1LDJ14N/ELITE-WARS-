@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELITE WARS: Tactical Ops</title>
+    <style>
+        :root { --neon: #00ff41; --danger: #ff3131; --bg: #050505; }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { background: var(--bg); overflow: hidden; font-family: 'Courier New', monospace; color: white; }
+
+        canvas { display: block; filter: contrast(1.1) brightness(1.1); }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100;
+        }
+        .loader-bar { width: 200px; height: 4px; background: #222; margin-top: 20px; position: relative; }
+        .loader-fill { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: 0.3s; }
+
+        /* Console Log */
+        #console {
+            position: absolute; bottom: 150px; left: 20px; width: 250px;
+            height: 100px; font-size: 10px; color: var(--neon);
+            pointer-events: none; overflow: hidden; display: flex; flex-direction: column-reverse;
+            background: rgba(0,0,0,0.3); padding: 5px; border-left: 2px solid var(--neon);
+        }
+
+        /* HUD */
+        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        .stat-line { margin-bottom: 5px; font-weight: bold; text-shadow: 2px 2px #000; }
+        .hp-bar-outer { width: 150px; height: 10px; border: 1px solid var(--neon); }
+        #hp-fill { width: 100%; height: 100%; background: var(--neon); }
+
+        /* Controls */
+        .controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; z-index: 50; }
+        .dpad { display: grid; grid-template-columns: repeat(3, 50px); gap: 5px; }
+        .btn { width: 50px; height: 50px; background: rgba(255,255,255,0.1); border: 1px solid var(--neon); border-radius: 5px; color: var(--neon); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .btn-fire { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--danger); color: var(--danger); font-weight: bold; }
+        
+        .btn:active { background: var(--neon); color: black; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <h2 id="load-text">INITIALIZING SYSTEM...</h2>
+        <div class="loader-bar"><div id="loader-fill" class="loader-fill"></div></div>
+    </div>
+
+    <div id="hud">
+        <div class="stat-line">OPERATIVE: ELITE-X</div>
+        <div class="stat-line">HP: <span id="hp-text">100</span>%</div>
+        <div class="hp-bar-outer"><div id="hp-fill"></div></div>
+        <div class="stat-line" style="margin-top: 10px;">DATA RECOVERED: <span id="score">0</span></div>
+    </div>
+
+    <div id="console"></div>
+
+    <div class="controls">
+        <div class="dpad">
+            <div style="grid-column: 2" class="btn" id="up">W</div>
+            <div style="grid-column: 1; grid-row: 2" class="btn" id="left">A</div>
+            <div style="grid-column: 2; grid-row: 2" class="btn" id="down">S</div>
+            <div style="grid-column: 3; grid-row: 2" class="btn" id="right">D</div>
+        </div>
+        <div class="btn btn-fire" id="fire">FIRE</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Assets Mapping
+    const assets = {
+        player: "https://autoresbot.com/tmp_files/edb9a329-2832-446c-ba8a-4c5aa229c3a3.jpg",
+        enemy: "https://autoresbot.com/tmp_files/093f7f19-e07d-4c73-ba18-4a8a5ec521ee.jpg"
+    };
+
+    const images = {};
+    let loadedCount = 0;
+    const totalAssets = 2;
+
+    // Console Log Function
+    function logToConsole(msg) {
+        const con = document.getElementById('console');
+        const line = document.createElement('div');
+        line.innerText = `> ${msg}`;
+        con.prepend(line);
+        if(con.childNodes.length > 5) con.removeChild(con.lastChild);
+    }
+
+    // Loading Assets
+    Object.keys(assets).forEach(key => {
+        const img = new Image();
+        img.src = assets[key];
+        img.onload = () => {
+            images[key] = img;
+            loadedCount++;
+            const progress = (loadedCount / totalAssets) * 100;
+            document.getElementById('loader-fill').style.width = progress + '%';
+            if(loadedCount === totalAssets) {
+                setTimeout(startGame, 1000);
+            }
+        };
+    });
+
+    // Game Logic
+    let player, enemies = [], bullets = [], gameActive = false, score = 0;
+    const keys = {};
+
+    class Player {
+        constructor() {
+            this.x = canvas.width/2; this.y = canvas.height/2;
+            this.w = 60; this.h = 60;
+            this.hp = 100; this.speed = 3;
+            this.angle = 0;
+            this.dir = {x:0, y:0};
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            // Draw Glow
+            ctx.shadowBlur = 15; ctx.shadowColor = '#00ff41';
+            // Draw Image
+            ctx.drawImage(images.player, -this.w/2, -this.h/2, this.w, this.h);
+            ctx.restore();
+        }
+        update() {
+            this.x += this.dir.x * this.speed;
+            this.y += this.dir.y * this.speed;
+            // Boundary
+            this.x = Math.max(30, Math.min(canvas.width-30, this.x));
+            this.y = Math.max(30, Math.min(canvas.height-30, this.y));
+            this.draw();
+        }
+    }
+
+    class Enemy {
+        constructor() {
+            this.w = 50; this.h = 50;
+            this.hp = 2;
+            const side = Math.floor(Math.random() * 4);
+            if(side === 0) { this.x = Math.random()*canvas.width; this.y = -50; }
+            else if(side === 1) { this.x = canvas.width+50; this.y = Math.random()*canvas.height; }
+            else if(side === 2) { this.x = Math.random()*canvas.width; this.y = canvas.height+50; }
+            else { this.x = -50; this.y = Math.random()*canvas.height; }
+            this.speed = 1 + Math.random() * 1.5; // Alur lebih smooth/lambat
+        }
+        update() {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            this.x += Math.cos(angle) * this.speed;
+            this.y += Math.sin(angle) * this.speed;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(angle + Math.PI/2); // Menghadap player
+            ctx.drawImage(images.enemy, -this.w/2, -this.h/2, this.w, this.h);
+            ctx.restore();
+        }
+    }
+
+    class Bullet {
+        constructor(x, y, angle) {
+            this.x = x; this.y = y;
+            this.angle = angle;
+            this.speed = 8;
+        }
+        update() {
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+            ctx.fillStyle = '#fff';
+            ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    function startGame() {
+        document.getElementById('loading-screen').style.display = 'none';
+        player = new Player();
+        gameActive = true;
+        logToConsole("SYSTEM ONLINE");
+        logToConsole("MISSION: SURVIVE ALIEN THREAT");
+        spawnHandler();
+        requestAnimationFrame(loop);
+    }
+
+    function spawnHandler() {
+        if(!gameActive) return;
+        enemies.push(new Enemy());
+        logToConsole("WARNING: HOSTILE DETECTED");
+        setTimeout(spawnHandler, 3000); // Muncul tiap 3 detik biar gak terlalu cepat
+    }
+
+    // Audio Simple
+    function playLaser() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function loop() {
+        if(!gameActive) return;
+        ctx.fillStyle = 'rgba(5,5,5,0.4)'; // Motion blur
+        ctx.fillRect(0,0,canvas.width, canvas.height);
+
+        player.update();
+
+        bullets.forEach((b, i) => {
+            b.update();
+            if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) bullets.splice(i, 1);
+        });
+
+        enemies.forEach((en, ei) => {
+            en.update();
+            // Collision with player
+            const d = Math.hypot(player.x - en.x, player.y - en.y);
+            if(d < 40) {
+                player.hp -= 0.5;
+                document.getElementById('hp-fill').style.width = player.hp + '%';
+                document.getElementById('hp-text').innerText = Math.floor(player.hp);
+                if(player.hp <= 0) {
+                    logToConsole("UNIT CRITICAL. MISSION FAILED.");
+                    gameActive = false;
+                    setTimeout(() => location.reload(), 3000);
+                }
+            }
+            // Collision with bullets
+            bullets.forEach((b, bi) => {
+                const bd = Math.hypot(b.x - en.x, b.y - en.y);
+                if(bd < 30) {
+                    en.hp--;
+                    bullets.splice(bi, 1);
+                    if(en.hp <= 0) {
+                        enemies.splice(ei, 1);
+                        score += 100;
+                        document.getElementById('score').innerText = score;
+                        logToConsole("TARGET NEUTRALIZED +100");
+                    }
+                }
+            });
+        });
+
+        requestAnimationFrame(loop);
+    }
+
+    // Input Handlers
+    const setupMove = (id, x, y) => {
+        const b = document.getElementById(id);
+        const set = (v) => { player.dir.x = v ? x : 0; player.dir.y = v ? y : 0; };
+        b.onpointerdown = () => set(true);
+        b.onpointerup = () => set(false);
+    };
+    setupMove('up', 0, -1); setupMove('down', 0, 1);
+    setupMove('left', -1, 0); setupMove('right', 1, 0);
+
+    document.getElementById('fire').onpointerdown = () => {
+        bullets.push(new Bullet(player.x, player.y, player.angle));
+        playLaser();
+    };
+
+    window.onmousemove = (e) => {
+        player.angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+    };
+
+    window.onkeydown = (e) => {
+        if(e.key === 'w') player.dir.y = -1;
+        if(e.key === 's') player.dir.y = 1;
+        if(e.key === 'a') player.dir.x = -1;
+        if(e.key === 'd') player.dir.x = 1;
+        if(e.key === ' ') {
+            bullets.push(new Bullet(player.x, player.y, player.angle));
+            playLaser();
+        }
+    };
+    window.onkeyup = (e) => {
+        if(e.key === 'w' || e.key === 's') player.dir.y = 0;
+        if(e.key === 'a' || e.key === 'd') player.dir.x = 0;
+    };
+
+</script>
+</body>
+  </html>
