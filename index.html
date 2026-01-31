@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ninja Defender: Story War</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui-layer">
+            <div class="stat-box">
+                <span>HP: <span id="player-hp">100</span></span>
+            </div>
+            <div class="stat-box">
+                <span>Score: <span id="score">0</span></span>
+            </div>
+        </div>
+
+        <div id="start-screen" class="modal">
+            <div class="modal-content">
+                <h1>NINJA DEFENDER</h1>
+                <p class="story-text">
+                    "Desa Konoha sedang diserang oleh Maling Hebat!<br>
+                    Sebagai Ninja pelindung, kamu harus maju dan mengalahkan mereka sebelum desa hancur."
+                </p>
+                <button id="start-btn">MULAI MISI</button>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="modal hidden">
+            <div class="modal-content">
+                <h1>GAME OVER</h1>
+                <p>Desa telah jatuh...</p>
+                <p>Final Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">COBA LAGI</button>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div id="joystick-area">
+                <div id="joystick-outline">
+                    <div id="joystick-knob"></div>
+                </div>
+            </div>
+            <div id="action-area">
+                <button id="attack-btn">⚔️</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+  </html>
